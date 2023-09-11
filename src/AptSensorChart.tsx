@@ -1,9 +1,10 @@
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import React, { useCallback, useState } from "react"
-import { ResponsiveContainer, ComposedChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Area } from 'recharts';
-import { aptSensorData, aptSensorArray, colorsArray } from './aptSensorData';
+import { TooltipData, TooltipValue } from './types';
+import { aptSensorArray, aptSensorData, colorsArray } from './aptSensorData';
+
 import moment from "moment-timezone"
 import styles from "./AptSensorChart.module.css"
-import { TooltipData, TooltipValue } from './types';
 
 const sensors = Object.keys(aptSensorData).map((name, index) => {
   let type = 'line'
@@ -57,7 +58,8 @@ function ChartTooltip(props: any) {
     callback(tooltipData)
   }
   const dbTemp = payload.find(entry => entry.name === 'dbtemp')
-  if (active && dbTemp)
+  // if (active && dbTemp)
+  if (dbTemp)
     return (
       <div className={styles.tooltip}>
         <div className={styles.header}>{moment.unix(label).format('hh:mm')}</div>
@@ -71,35 +73,70 @@ function ChartTooltip(props: any) {
 }
 
 const Chart = React.memo(function InnerChart(props: any) {
+  const [showRefDot, setShowRefDot] = useState(true)
+  const [activeXLabel, setActiveXLabel] = useState(null)
   const { tooltipCallback } = props
-  console.log('Rendering chart')
+  // console.log('Rendering chart')
+  const lastDbTemp = aptSensorData['dbtemp'] && aptSensorData['dbtemp'][aptSensorData['dbtemp'].length - 1]
+  const onMouseMove = useCallback(function onMouseEnter(e) {
+    // console.log('onMouseMove', e)
+    setShowRefDot(false)
+    if (e.activeLabel) {
+      // console.log('activeLabel', e.activeLabel)
+      setActiveXLabel(e.activeLabel)
+    }
+  }, [])
+  const onMouseLeave = useCallback(function onMouseEnter() {
+    setShowRefDot(true)
+  }, [])
+
+  const renderTooltip = useCallback(function tooltip(props) {
+    // console.log('renderTooltip', props, props.active, activeXLabel)
+    if (!props.active && activeXLabel) {
+      // console.log('Clearing activeXLabel')
+      setShowRefDot(true)
+      setActiveXLabel(null)
+    }
+    if (props.active && props.label != activeXLabel) {
+      setShowRefDot(false)
+      setActiveXLabel(props.label)
+    }
+    return <ChartTooltip callback={tooltipCallback} {...props} />
+  }, [activeXLabel])
+
   return (
     // <div style={{ width: '100%', height: 300 }}>
     <>
       <div className={styles.chartWrapper}>
         <ResponsiveContainer>
-          <ComposedChart data={aptSensorArray} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+          <ComposedChart data={aptSensorArray}
+            margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
+          // onMouseMove={onMouseMove}
+          // onMouseLeave={onMouseLeave}
+          >
             {sensors.map(sensor => {
               switch (sensor.type) {
                 case "line":
                   return <Line key={sensor.name} type="monotone" dataKey={sensor.name} stroke={sensor.color}
-                    animationDuration={500} dot={false} connectNulls={false} />
+                    animationDuration={500} isAnimationActive={false} dot={false} connectNulls={false} />
                 case "area":
                   return <Area key={sensor.name} type="monotone" dataKey={sensor.name} stroke={sensor.color}
-                    fillOpacity={1} fill="url(#colorPv)" animationDuration={500} />
+                    fillOpacity={1} fill="url(#colorPv)" animationDuration={500} isAnimationActive={false} />
                 default:
                   return null
               }
             })}
             <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-            <XAxis dataKey="ts" tick={<DateTick />} />
+            <XAxis dataKey="ts" tick={<DateTick />} ticks={activeXLabel ? [activeXLabel] : null} />
             <YAxis domain={['dataMin - 5', 'dataMax + 5']} orientation="right" mirror={true} ticks={[70, 80, 90, 100]} />
-            {/* <YAxis domain={['dataMin - 10', 'dataMax + 10']} orientation="right" mirror={true} padding={{ top: 0, bottom: 20 }} /> */}
+            {showRefDot && lastDbTemp &&
+              <ReferenceDot x={lastDbTemp.x.toString()} y={lastDbTemp.y} r={4} fill="#fff" stroke="#000" strokeWidth={2} />
+            }
             <Tooltip
-              // allowEscapeViewBox={{ x: false, y: true }}
               isAnimationActive={true}
               animationDuration={100}
-              content={<ChartTooltip callback={tooltipCallback} />} />
+              content={renderTooltip}
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -127,7 +164,7 @@ export default function AptSensorChart() {
   }, [])
 
   return (
-    <div>
+    <div className={styles.aptSensorChart}>
       <Chart tooltipCallback={onTooltipChange} />
       <DataDetail tooltipData={tipData} />
     </div >
