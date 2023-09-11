@@ -1,0 +1,24 @@
+.tooltip {
+  border: 1px solid #888;
+  border-radius: 20px;
+  text-align: center;
+  background-color: #fff;
+  padding: 1em;
+}
+
+.header {
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+.values {
+  margin-top: 1rem;
+}
+
+.valueEntry {
+  display: flex;
+  justify-content: space-between;
+  .name {
+    margin-right: 20px;
+  }
+}
