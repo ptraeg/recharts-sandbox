@@ -1,4 +1,4 @@
-import { Area, CartesianGrid, ComposedChart, Line, ReferenceDot, ResponsiveContainer, Tooltip, TooltipProps, XAxis, YAxis } from 'recharts';
+import { Area, CartesianGrid, ComposedChart, Customized, Line, ReferenceDot, ResponsiveContainer, Tooltip, TooltipProps, XAxis, YAxis } from 'recharts';
 import React, { useCallback, useState } from "react"
 import { TooltipData, TooltipValue } from './types';
 import { aptSensorArray, aptSensorData, colorsArray } from './aptSensorData';
@@ -63,7 +63,30 @@ function ChartTooltip(props) {
     );
 }
 
-const Chart = React.memo(function InnerChart(props: any) {
+function InnerChart(props: any) {
+  console.log('Rendering inner chart', props)
+  return (
+    <>
+      {sensors.map(sensor => {
+        switch (sensor.type) {
+          case "line":
+            return <Line {...props} key={sensor.name} type="monotone" dataKey={sensor.name} stroke={sensor.color}
+              animationDuration={500} isAnimationActive={false} dot={false} connectNulls={false} />
+          case "area":
+            return <Area {...props} key={sensor.name} type="monotone" dataKey={sensor.name} stroke={sensor.color}
+              fillOpacity={1} fill="url(#colorPv)" animationDuration={500} isAnimationActive={false} />
+          default:
+            return null
+        }
+      })}
+      <CartesianGrid {...props} stroke="#ccc" strokeDasharray="5 5" />
+      <YAxis {...props} domain={['dataMin - 5', 'dataMax + 5']} orientation="right" mirror={true} ticks={[70, 80, 90, 100]} />
+    </>
+  )
+}
+const MemoizedInnerChart = React.memo(InnerChart)
+
+const MemoizedChart = React.memo(function Chart(props: any) {
   const [showRefDot, setShowRefDot] = useState(true)
   const [activeXLabel, setActiveXLabel] = useState(null)
   const { tooltipCallback } = props
@@ -105,27 +128,13 @@ const Chart = React.memo(function InnerChart(props: any) {
         <ResponsiveContainer>
           <ComposedChart data={aptSensorArray}
             margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
-          // onMouseMove={onMouseMove}
-          // onMouseLeave={onMouseLeave}
           >
-            {sensors.map(sensor => {
-              switch (sensor.type) {
-                case "line":
-                  return <Line key={sensor.name} type="monotone" dataKey={sensor.name} stroke={sensor.color}
-                    animationDuration={500} isAnimationActive={false} dot={false} connectNulls={false} />
-                case "area":
-                  return <Area key={sensor.name} type="monotone" dataKey={sensor.name} stroke={sensor.color}
-                    fillOpacity={1} fill="url(#colorPv)" animationDuration={500} isAnimationActive={false} />
-                default:
-                  return null
-              }
-            })}
-            <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
+            <div>Hello world</div>
+            <Customized component={InnerChart} />
             <XAxis dataKey="ts" tick={<DateTick showMinutes={!!activeXLabel} />} ticks={activeXLabel ? [activeXLabel] : null} />
-            <YAxis domain={['dataMin - 5', 'dataMax + 5']} orientation="right" mirror={true} ticks={[70, 80, 90, 100]} />
-            {showRefDot && lastDbTemp &&
+            {/* {showRefDot && lastDbTemp &&
               <ReferenceDot x={lastDbTemp.x.toString()} y={lastDbTemp.y} r={4} fill="#fff" stroke="#000" strokeWidth={2} />
-            }
+            } */}
             <Tooltip
               isAnimationActive={true}
               animationDuration={100}
@@ -159,7 +168,7 @@ export default function AptSensorChart() {
 
   return (
     <div className={styles.aptSensorChart}>
-      <Chart tooltipCallback={onTooltipChange} />
+      <MemoizedChart tooltipCallback={onTooltipChange} />
       <DataDetail tooltipData={tipData} />
     </div >
   );
