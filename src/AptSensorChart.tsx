@@ -1,4 +1,4 @@
-import { Area, CartesianGrid, ComposedChart, Line, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceDot, ResponsiveContainer, Tooltip, TooltipProps, XAxis, YAxis } from 'recharts';
 import React, { useCallback, useState } from "react"
 import { TooltipData, TooltipValue } from './types';
 import { aptSensorArray, aptSensorData, colorsArray } from './aptSensorData';
@@ -17,12 +17,12 @@ const sensors = Object.keys(aptSensorData).map((name, index) => {
 })
 
 function DateTick(props) {
-  const { x, y, stroke, payload } = props
+  const { x, y, payload, showMinutes } = props
   // console.log(payload)
   return (
     <g transform={`translate(${x},${y})`}>
       <text x={0} y={0} dy={16} textAnchor="middle" fill="#666">
-        {moment.unix(payload.value).format('h a')}
+        {moment.unix(payload.value).format(showMinutes ? 'h:m a' : 'h a')}
       </text>
     </g>
   );
@@ -47,18 +47,9 @@ function DataDetail({ tooltipData }: { tooltipData: TooltipData }) {
   return null
 }
 
-function ChartTooltip(props: any) {
-  const { active, payload, label, callback } = props
-  if (callback) {
-    const tooltipData: TooltipData = {
-      active,
-      label,
-      values: payload
-    }
-    callback(tooltipData)
-  }
+function ChartTooltip(props) {
+  const { payload, label } = props
   const dbTemp = payload.find(entry => entry.name === 'dbtemp')
-  // if (active && dbTemp)
   if (dbTemp)
     return (
       <div className={styles.tooltip}>
@@ -78,31 +69,34 @@ const Chart = React.memo(function InnerChart(props: any) {
   const { tooltipCallback } = props
   // console.log('Rendering chart')
   const lastDbTemp = aptSensorData['dbtemp'] && aptSensorData['dbtemp'][aptSensorData['dbtemp'].length - 1]
-  const onMouseMove = useCallback(function onMouseEnter(e) {
-    // console.log('onMouseMove', e)
-    setShowRefDot(false)
-    if (e.activeLabel) {
-      // console.log('activeLabel', e.activeLabel)
-      setActiveXLabel(e.activeLabel)
-    }
-  }, [])
-  const onMouseLeave = useCallback(function onMouseEnter() {
-    setShowRefDot(true)
-  }, [])
 
   const renderTooltip = useCallback(function tooltip(props) {
     // console.log('renderTooltip', props, props.active, activeXLabel)
-    if (!props.active && activeXLabel) {
+    const { active, payload, label } = props
+    if (!active && activeXLabel) {
       // console.log('Clearing activeXLabel')
-      setShowRefDot(true)
-      setActiveXLabel(null)
+      setTimeout(() => {
+        setShowRefDot(true)
+        setActiveXLabel(null)
+      }, 0)
     }
-    if (props.active && props.label != activeXLabel) {
-      setShowRefDot(false)
-      setActiveXLabel(props.label)
+    if (active && label != activeXLabel) {
+      setTimeout(() => {
+        setShowRefDot(false)
+        setActiveXLabel(props.label)
+      }, 0)
     }
-    return <ChartTooltip callback={tooltipCallback} {...props} />
-  }, [activeXLabel])
+    if (tooltipCallback) {
+      const tooltipData: TooltipData = {
+        active,
+        label,
+        values: payload
+      }
+      setTimeout(() => tooltipCallback(tooltipData), 0)
+    }
+
+    return <ChartTooltip {...props} />
+  }, [activeXLabel, tooltipCallback])
 
   return (
     // <div style={{ width: '100%', height: 300 }}>
@@ -127,7 +121,7 @@ const Chart = React.memo(function InnerChart(props: any) {
               }
             })}
             <CartesianGrid stroke="#ccc" strokeDasharray="5 5" />
-            <XAxis dataKey="ts" tick={<DateTick />} ticks={activeXLabel ? [activeXLabel] : null} />
+            <XAxis dataKey="ts" tick={<DateTick showMinutes={!!activeXLabel} />} ticks={activeXLabel ? [activeXLabel] : null} />
             <YAxis domain={['dataMin - 5', 'dataMax + 5']} orientation="right" mirror={true} ticks={[70, 80, 90, 100]} />
             {showRefDot && lastDbTemp &&
               <ReferenceDot x={lastDbTemp.x.toString()} y={lastDbTemp.y} r={4} fill="#fff" stroke="#000" strokeWidth={2} />
